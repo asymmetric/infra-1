@@ -73,6 +73,7 @@ type Server struct {
 	overrideLims            map[string]FrontendRateLimiter
 	senderLim               FrontendRateLimiter
 	allowedChainIds         []*big.Int
+	limExemptProxyClients   []*regexp.Regexp
 	limExemptOrigins        []*regexp.Regexp
 	limExemptUserAgents     []*regexp.Regexp
 	globallyLimitedMethods  map[string]bool
@@ -132,10 +133,18 @@ func NewServer(
 	}
 
 	var mainLim FrontendRateLimiter
+	limExemptProxyClients := make([]*regexp.Regexp, 0)
 	limExemptOrigins := make([]*regexp.Regexp, 0)
 	limExemptUserAgents := make([]*regexp.Regexp, 0)
 	if rateLimitConfig.BaseRate > 0 {
 		mainLim = limiterFactory(time.Duration(rateLimitConfig.BaseInterval), rateLimitConfig.BaseRate, "main")
+		for _, client := range rateLimitConfig.ExemptProxyClients {
+			pattern, err := regexp.Compile(client)
+			if err != nil {
+				return nil, err
+			}
+			limExemptProxyClients = append(limExemptProxyClients, pattern)
+		}
 		for _, origin := range rateLimitConfig.ExemptOrigins {
 			pattern, err := regexp.Compile(origin)
 			if err != nil {
@@ -195,6 +204,7 @@ func NewServer(
 		globallyLimitedMethods:  globalMethodLims,
 		senderLim:               senderLim,
 		allowedChainIds:         senderRateLimitConfig.AllowedChainIds,
+		limExemptProxyClients:   limExemptProxyClients,
 		limExemptOrigins:        limExemptOrigins,
 		limExemptUserAgents:     limExemptUserAgents,
 		rateLimitHeader:         rateLimitHeader,
@@ -270,6 +280,7 @@ func (s *Server) HandleRPC(w http.ResponseWriter, r *http.Request) {
 	userAgent := r.Header.Get("User-Agent")
 	// Use XFF in context since it will automatically be replaced by the remote IP
 	xff := stripXFF(GetXForwardedFor(ctx))
+	isUnlimitedProxyClient := s.isUnlimitedProxyClient(xff)
 	isUnlimitedOrigin := s.isUnlimitedOrigin(origin)
 	isUnlimitedUserAgent := s.isUnlimitedUserAgent(userAgent)
 
@@ -280,7 +291,7 @@ func (s *Server) HandleRPC(w http.ResponseWriter, r *http.Request) {
 
 	isLimited := func(method string) bool {
 		isGloballyLimitedMethod := s.isGlobalLimit(method)
-		if !isGloballyLimitedMethod && (isUnlimitedOrigin || isUnlimitedUserAgent) {
+		if !isGloballyLimitedMethod && (isUnlimitedProxyClient || isUnlimitedOrigin || isUnlimitedUserAgent) {
 			return false
 		}
 
@@ -824,6 +835,15 @@ func randStr(l int) string {
 	return hex.EncodeToString(b)
 }
 
+func (s *Server) isUnlimitedProxyClient(client string) bool {
+	for _, pat := range s.limExemptProxyClients {
+		if pat.MatchString(client) {
+			return true
+		}
+	}
+
+	return false
+}
 func (s *Server) isUnlimitedOrigin(origin string) bool {
 	for _, pat := range s.limExemptOrigins {
 		if pat.MatchString(origin) {

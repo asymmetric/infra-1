@@ -23,6 +23,7 @@ base_rate = 2
 base_interval = "1s"
 exempt_origins = ["exempt_origin"]
 exempt_user_agents = ["exempt_agent"]
+exempt_proxy_clients = [ "1.2.3.4" ]
 error_message = "over rate limit with special message"
 
 [rate_limit.method_overrides.eth_foobar]

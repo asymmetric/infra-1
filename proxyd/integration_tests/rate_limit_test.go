@@ -39,6 +39,14 @@ func TestFrontendMaxRPSLimit(t *testing.T) {
 		RequireEqualJSON(t, []byte(frontendOverLimitResponseWithID), limitedRes)
 	})
 
+	t.Run("exempt proxy client", func(t *testing.T) {
+		h := make(http.Header)
+		h.Set("X-Forwarded-For", "1.2.3.4")
+		client := NewProxydClientWithHeaders("http://127.0.0.1:8545", h)
+		_, codes := spamReqs(t, client, ethChainID, 429, 3)
+		require.Equal(t, 3, codes[200])
+	})
+
 	t.Run("exempt user agent over limit", func(t *testing.T) {
 		h := make(http.Header)
 		h.Set("User-Agent", "exempt_agent")

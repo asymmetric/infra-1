@@ -56,14 +56,15 @@ type MetricsConfig struct {
 }
 
 type RateLimitConfig struct {
-	UseRedis         bool                                `toml:"use_redis"`
-	BaseRate         int                                 `toml:"base_rate"`
-	BaseInterval     TOMLDuration                        `toml:"base_interval"`
-	ExemptOrigins    []string                            `toml:"exempt_origins"`
-	ExemptUserAgents []string                            `toml:"exempt_user_agents"`
-	ErrorMessage     string                              `toml:"error_message"`
-	MethodOverrides  map[string]*RateLimitMethodOverride `toml:"method_overrides"`
-	IPHeaderOverride string                              `toml:"ip_header_override"`
+	UseRedis           bool                                `toml:"use_redis"`
+	BaseRate           int                                 `toml:"base_rate"`
+	BaseInterval       TOMLDuration                        `toml:"base_interval"`
+	ExemptProxyClients []string                            `toml:"exempt_proxy_clients"`
+	ExemptOrigins      []string                            `toml:"exempt_origins"`
+	ExemptUserAgents   []string                            `toml:"exempt_user_agents"`
+	ErrorMessage       string                              `toml:"error_message"`
+	MethodOverrides    map[string]*RateLimitMethodOverride `toml:"method_overrides"`
+	IPHeaderOverride   string                              `toml:"ip_header_override"`
 }
 
 type RateLimitMethodOverride struct {
